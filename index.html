@@ -1,0 +1,250 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plant Disease Detection</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 2rem;
+        }
+        .container {
+            max-width: 800px;
+        }
+        .result-container {
+            display: none;
+            margin-top: 2rem;
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .upload-area {
+            border: 2px dashed #6c757d;
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 1rem;
+        }
+        .upload-area:hover {
+            border-color: #28a745;
+        }
+        #preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            margin-bottom: 1rem;
+            border-radius: 8px;
+        }
+        .spinner {
+            display: none;
+        }
+        .confidence-bar {
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .confidence-level {
+            height: 100%;
+            background-color: #28a745;
+            border-radius: 5px;
+            text-align: center;
+            color: white;
+            line-height: 20px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="text-center mb-4">
+            <h1 class="display-4">Plant Disease Detection</h1>
+            <p class="lead">Upload an image of a plant leaf to detect diseases</p>
+        </div>
+        
+        <div class="upload-area" id="upload-area">
+            <div id="upload-prompt">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" class="bi bi-cloud-arrow-up mb-3 text-secondary" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M7.646 5.146a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1-.708.708L8.5 6.707V10.5a.5.5 0 0 1-1 0V6.707L6.354 7.854a.5.5 0 1 1-.708-.708l2-2z"/>
+                    <path d="M4.406 3.342A5.53 5.53 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773 16 11.569 14.502 13 12.687 13H3.781C1.708 13 0 11.366 0 9.318c0-1.763 1.266-3.223 2.942-3.593.143-.863.698-1.723 1.464-2.383zm.653.757c-.757.653-1.153 1.44-1.153 2.056v.448l-.445.049C2.064 6.805 1 7.952 1 9.318 1 10.785 2.23 12 3.781 12h8.906C13.98 12 15 10.988 15 9.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 4.825 10.328 3 8 3a4.53 4.53 0 0 0-2.941 1.1z"/>
+                </svg>
+                <h5>Drag & Drop your image here</h5>
+                <p>or click to browse files</p>
+            </div>
+            <div id="preview" style="display: none;">
+                <img id="preview-image" src="" alt="Preview">
+                <p id="file-name"></p>
+                <button class="btn btn-outline-secondary btn-sm" id="change-image">Change Image</button>
+            </div>
+        </div>
+        
+        <div class="text-center">
+            <input type="file" id="file-input" accept=".jpg,.jpeg,.png" style="display: none;">
+            <button class="btn btn-success btn-lg px-4" id="upload-button" disabled>Analyze Image</button>
+            
+            <div class="spinner mt-3">
+                <div class="spinner-border text-success" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Analyzing image...</p>
+            </div>
+        </div>
+
+        <div class="result-container" id="result-container">
+            <div class="row">
+                <div class="col-md-5">
+                    <img id="result-image" src="" alt="Analyzed Plant" class="img-fluid rounded">
+                </div>
+                <div class="col-md-7">
+                    <h4 id="prediction-heading">Detection Result</h4>
+                    <div class="confidence-bar">
+                        <div class="confidence-level" id="confidence-level"></div>
+                    </div>
+                    <div class="mb-3">
+                        <h5 class="mt-3">Symptoms</h5>
+                        <p id="symptoms"></p>
+                    </div>
+                    <div class="mb-3">
+                        <h5>Treatment</h5>
+                        <p id="treatment"></p>
+                    </div>
+                    <div>
+                        <h5>Prevention</h5>
+                        <p id="prevention"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadArea = document.getElementById('upload-area');
+            const fileInput = document.getElementById('file-input');
+            const uploadButton = document.getElementById('upload-button');
+            const previewImage = document.getElementById('preview-image');
+            const preview = document.getElementById('preview');
+            const uploadPrompt = document.getElementById('upload-prompt');
+            const fileName = document.getElementById('file-name');
+            const changeImageBtn = document.getElementById('change-image');
+            const spinner = document.querySelector('.spinner');
+            const resultContainer = document.getElementById('result-container');
+            const resultImage = document.getElementById('result-image');
+            const predictionHeading = document.getElementById('prediction-heading');
+            const confidenceLevel = document.getElementById('confidence-level');
+            const symptoms = document.getElementById('symptoms');
+            const treatment = document.getElementById('treatment');
+            const prevention = document.getElementById('prevention');
+
+            // Handle click on upload area
+            uploadArea.addEventListener('click', function() {
+                fileInput.click();
+            });
+
+            // Handle drag and drop
+            uploadArea.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                uploadArea.classList.add('border-success');
+            });
+
+            uploadArea.addEventListener('dragleave', function() {
+                uploadArea.classList.remove('border-success');
+            });
+
+            uploadArea.addEventListener('drop', function(e) {
+                e.preventDefault();
+                uploadArea.classList.remove('border-success');
+                if (e.dataTransfer.files.length) {
+                    fileInput.files = e.dataTransfer.files;
+                    handleFileSelect();
+                }
+            });
+
+            // Handle file selection
+            fileInput.addEventListener('change', handleFileSelect);
+
+            function handleFileSelect() {
+                if (fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    const reader = new FileReader();
+
+                    reader.onload = function(e) {
+                        previewImage.src = e.target.result;
+                        fileName.textContent = file.name;
+                        uploadPrompt.style.display = 'none';
+                        preview.style.display = 'block';
+                        uploadButton.disabled = false;
+                    };
+
+                    reader.readAsDataURL(file);
+                }
+            }
+
+            // Change image button
+            changeImageBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                fileInput.value = '';
+                preview.style.display = 'none';
+                uploadPrompt.style.display = 'block';
+                uploadButton.disabled = true;
+            });
+
+            // Upload and predict
+            uploadButton.addEventListener('click', function() {
+                if (fileInput.files.length === 0) return;
+
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+
+                // Show spinner
+                spinner.style.display = 'block';
+                uploadButton.disabled = true;
+                resultContainer.style.display = 'none';
+
+                fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Hide spinner
+                    spinner.style.display = 'none';
+                    uploadButton.disabled = false;
+
+                    if (data.success) {
+                        // Display results
+                        resultContainer.style.display = 'block';
+                        resultImage.src = '/static/uploads/' + data.filename;
+                        
+                        // Format the disease name for display
+                        const diseaseName = data.prediction.replace(/_/g, ' ').replace(/___/, ': ');
+                        predictionHeading.textContent = diseaseName;
+                        
+                        // Set confidence bar
+                        const confidencePercent = Math.round(data.confidence * 100);
+                        confidenceLevel.style.width = confidencePercent + '%';
+                        confidenceLevel.textContent = confidencePercent + '% Confidence';
+                        
+                        // Set disease information
+                        symptoms.textContent = data.disease_info.symptoms;
+                        treatment.textContent = data.disease_info.treatment;
+                        prevention.textContent = data.disease_info.prevention;
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    spinner.style.display = 'none';
+                    uploadButton.disabled = false;
+                    alert('Error during prediction: ' + error);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
